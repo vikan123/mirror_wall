@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mirror_wall/provider.dart';
+import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class BrowserPage extends StatefulWidget {
@@ -9,138 +11,120 @@ class BrowserPage extends StatefulWidget {
 }
 
 class _BrowserPageState extends State<BrowserPage> {
- late TextEditingController textcontroller;
- late WebViewController webcontroller;
- String searchEngineUrl = "https://www.google.com/";
- bool isloading =false;
+  bool outline = false;
 
  @override
  void initState(){
-   textcontroller = TextEditingController(text: searchEngineUrl);
-   webcontroller = WebViewController();
-   webcontroller.setJavaScriptMode(JavaScriptMode.unrestricted);
-   webcontroller.setNavigationDelegate(NavigationDelegate(
-     onPageStarted: (url){
-       textcontroller.text = url;
-       setState(() {
-         isloading =true;
-       });
-     },
-     onPageFinished: (url){
-       setState(() {
-         isloading = false;
-       });
-   }
-   ));
-   loadUrl(textcontroller.text);
+
+   final auth = Provider.of<BrowserProvider>(context, listen: false);
+   auth.browserTheme();
    super.initState();
  }
- @override
- void dispose(){
-   textcontroller.dispose();
-   super.dispose();
- }
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(child: WillPopScope(
-      child: Scaffold(
-        body: Column(
-          children: [
-            _buildTopWidget(),
-            _buildLoadingWidget(),
-             Expanded(child: _buildWebWidget()),
-            _buildBottomWidget()
-          ],
+    return Consumer<BrowserProvider>(builder:(context,provider,child){
+      return SafeArea(child: WillPopScope(
+        onWillPop:provider.onPop(),
+        child: Scaffold(
+          body: Column(
+            children: [
+              buildTopWidget(),
+              buildLoadingWidget(),
+              Expanded(child: buildWebWidget()),
+              buildBottomWidget()
+            ],
+          ),
         ),
-      ),onWillPop: onWillPop,
-    ));
-  }
- Future<bool>onWillPop()async{
-   if(await webcontroller.canGoBack()){
-     webcontroller.goBack();
-     return Future.value(false);
-   }
-   return Future.value(true);
-
- }
-
- loadUrl(String value){
-   Uri uri = Uri.parse(value);
-   if(!uri.isAbsolute){
-     uri = Uri.parse("${searchEngineUrl}search?q=$value");
-   }
-   webcontroller.loadRequest(uri);
+      ));
+    });
   }
 
-  _buildTopWidget() {
-   return Padding(padding: EdgeInsets.all(10) ,child:Container(
-     alignment: Alignment.center,
-     decoration: BoxDecoration(
-       border: Border.all(),
-       borderRadius: BorderRadius.all(Radius.circular(32)),
-     ),
-     child: Row(
-       crossAxisAlignment: CrossAxisAlignment.center,
-       children: [
-         IconButton(onPressed: (){
-           loadUrl(searchEngineUrl);
-         }, icon: Icon(Icons.home,color: Colors.black,)),
-         Expanded(child: TextField(
-           controller: textcontroller,
-           decoration: InputDecoration(
-             border: InputBorder.none,
-             hintText: "Search or type web address",
+
+  buildTopWidget() {
+   return Consumer<BrowserProvider>(builder: (context,provider,child){
+     return Padding(padding: const EdgeInsets.all(10) ,child:Container(
+       alignment: Alignment.center,
+       decoration: BoxDecoration(
+         border: Border.all(),
+         borderRadius: const BorderRadius.all(Radius.circular(32)),
+       ),
+       child: Row(
+         crossAxisAlignment: CrossAxisAlignment.center,
+         children: [
+           IconButton(onPressed: (){
+             provider.searchEngineUrl;
+           }, icon: const Icon(Icons.home,color: Colors.black,)),
+           Expanded(child: TextField(
+             controller: provider.textcontroller,
+             decoration: const InputDecoration(
+               border: InputBorder.none,
+               hintText: "Search or type web address",
+             ),
+             onSubmitted: (value){
+              provider.value;
+             },
+           )),
+           IconButton(icon: Icon(outline ? Icons.bookmark_outline : Icons.bookmark),
+               onPressed:(){
+                 setState((){
+                   outline = !outline;
+                 });
+               }
            ),
-           onSubmitted: (value){
-             loadUrl(value);
-           },
-         )),
-         IconButton(onPressed: (){
-           textcontroller.clear();
-         }, icon: Icon(Icons.cancel))
+           IconButton(onPressed: (){
+             provider.textcontroller!.clear();
+           }, icon: const Icon(Icons.cancel))
+         ],
+       ),
+     ));
+   });
+
+  }
+
+  buildLoadingWidget() {
+   return Consumer<BrowserProvider>(builder: (context,provider,child){
+     return Container(
+       height: 2,
+       color: Colors.grey,
+       child: provider.isloading?const LinearProgressIndicator():Container(),
+     );
+   });
+  }
+
+  buildWebWidget() {
+   return Consumer<BrowserProvider>(builder: (context,provider,child){
+     return WebViewWidget(controller:provider.webcontroller!);
+   });
+  }
+
+  buildBottomWidget() {
+   return Consumer<BrowserProvider>(builder: (context,provider,child){
+     return BottomNavigationBar(
+       onTap: (value){
+         switch (value){
+           case 0:
+             provider.webcontroller!.goBack();
+             break;
+           case 1:
+             provider.webcontroller!.goForward();
+             break;
+           case 2:
+             provider.webcontroller!.reload();
+
+         }
+       },
+       items: const [
+         BottomNavigationBarItem(icon: Icon(Icons.arrow_back),label: "Back"),
+         BottomNavigationBarItem(icon: Icon(Icons.arrow_forward),label: "Forward"),
+         BottomNavigationBarItem(icon: Icon(Icons.replay),label: "Reload"),
        ],
-     ),
-   ));
-
-  }
-
-  _buildLoadingWidget() {
-   return Container(
-     height: 2,
-     color: Colors.grey,
-     child: isloading?LinearProgressIndicator():Container(),
-   );
-  }
-
-  _buildWebWidget() {
-   return WebViewWidget(controller: webcontroller);
-  }
-
-  _buildBottomWidget() {
-   return BottomNavigationBar(
-   onTap: (value){
-      switch (value){
-        case 0:
-          webcontroller.goBack();
-          break;
-        case 1:
-          webcontroller.goForward();
-          break;
-        case 2:
-          webcontroller.reload();
-
-      }
-   },
-   items: [
-     BottomNavigationBarItem(icon: Icon(Icons.arrow_back),label: "Back"),
-     BottomNavigationBarItem(icon: Icon(Icons.arrow_forward),label: "Forward"),
-     BottomNavigationBarItem(icon: Icon(Icons.replay),label: "Reload"),
-   ],
-   showSelectedLabels: false,
-     showUnselectedLabels: false,
-     unselectedItemColor: Colors.black54,
-     selectedItemColor: Colors.black54,
-   );
+       showSelectedLabels: false,
+       showUnselectedLabels: false,
+       unselectedItemColor: Colors.black54,
+       selectedItemColor: Colors.black54,
+     );
+   });
   }
 }
 

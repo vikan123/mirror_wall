@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mirror_wall/provider.dart';
 import 'package:mirror_wall/screen/browser.dart';
+import 'package:provider/provider.dart';
 
 
 void main() {
@@ -12,10 +14,16 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return  MaterialApp(
+    return MultiProvider(
+
+        providers: [
+
+        ChangeNotifierProvider(create: (context)=>BrowserProvider()),
+
+    ],child: MaterialApp(
         debugShowCheckedModeBanner: false,
         home: BrowserPage(),
-    );
+    ));
 
   }
 }
